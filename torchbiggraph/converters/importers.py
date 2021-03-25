@@ -391,18 +391,18 @@ def convert_input_data(
 
     if distributed:
         #assume have only one
-        for entity_name, entity_config in entity_configs.items():
-            #read all relation types and count
-            names = relation_type_storage.load_names()
-            relation_types = Dictionary(names)
+        entity_name, entity_config = entity_configs.items()[0]:
+        #read all relation types and count
+        names = relation_type_storage.load_names()
+        relation_types = Dictionary(names)
 
-            #read all entities and count
-            entities_by_type: Dict[str, PartDictionary] = {}
-            names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
-            entities_by_type[entity_name] = PartDictionary(
-                names, num_parts = 1,
-                part_=entity_configs[entity_name].part_
-            )
+        #read all entities and count
+        entities_by_type: Dict[str, PartDictionary] = {}
+        names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
+        entities_by_type[entity_name] = PartDictionary(
+            names, num_parts = 1,
+            part_=entity_configs[entity_name].part_
+        )
 
     else:
         relation_types = collect_relation_types(
