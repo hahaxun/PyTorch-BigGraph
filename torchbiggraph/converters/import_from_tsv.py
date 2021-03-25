@@ -77,6 +77,7 @@ def main():
         opt.entity_min_count,
         opt.relation_type_min_count,
         dynamic_relations,
+        True
     )
 
 
