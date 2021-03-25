@@ -271,7 +271,8 @@ def generate_edge_path_files(
     log(f"- Edges will be partitioned in {num_lhs_parts} x {num_rhs_parts} buckets.")
 
     processed = 0
-    skipped = 0
+    edge_skipped = 0
+    node_skipped = 0
     # We use an ExitStack in order to close the dynamically-created edge appenders.
     with ExitStack() as appender_stack:
         appenders: Dict[Tuple[int, int], AbstractEdgeAppender] = {}
@@ -285,7 +286,7 @@ def generate_edge_path_files(
                     rel_id = relation_types.get_id(rel_word)
                 except KeyError:
                     # Ignore edges whose relation type is not known.
-                    skipped += 1
+                    edge_skipped += 1
                     continue
 
             if dynamic_relations:
@@ -304,7 +305,7 @@ def generate_edge_path_files(
                 )
             except KeyError:
                 # Ignore edges whose entities are not known.
-                skipped += 1
+                node_skipped += 1
                 continue
 
             if (lhs_part, rhs_part) not in appenders:
@@ -329,10 +330,18 @@ def generate_edge_path_files(
                 part_data.clear()
 
     log(f"- Processed {processed} edges in total")
-    if skipped > 0:
+
+    if edge_skipped > 0:
         log(
-            f"- Skipped {skipped} edges because their relation type or "
-            f"entities were unknown (either not given in the config or "
+            f"- Skipped {edge_skipped} edges because their relation type "
+            f"unknown (either not given in the config or "
+            f"filtered out as too rare)."
+        )
+
+    if node_skipped > 0:
+        log(
+            f"- Skipped {node_skipped} nodes because entities were"
+            f"unknown (either not given in the config or "
             f"filtered out as too rare)."
         )
 
