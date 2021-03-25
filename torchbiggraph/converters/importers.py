@@ -396,9 +396,9 @@ def convert_input_data(
 
         #read all entities and count
         entities_by_type: Dict[str, PartDictionary] = {}
-        names = entity_storage.load_names()
+        names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
         entities_by_type[entity_name] = PartDictionary(
-            names, num_parts=entity_configs[entity_name].num_partitions,
+            names, num_parts = 1,
             part_=entity_configs[entity_name].part_
         )
 
