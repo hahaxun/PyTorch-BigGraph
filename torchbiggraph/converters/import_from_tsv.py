@@ -66,7 +66,7 @@ def main():
     ) = parse_config_partial(  # noqa
         config_dict
     )
-
+    print(edge_paths,entity_path)
     convert_input_data(
         entity_configs,
         relation_configs,
