@@ -277,7 +277,7 @@ def generate_edge_path_files(
         appenders: Dict[Tuple[int, int], AbstractEdgeAppender] = {}
         data: Dict[Tuple[int, int], List[Tuple[int, int, int]]] = {}
 
-        for lhs_word, rhs_word, rel_word in edgelist_reader.read(edge_file_in, entities_by_type):
+        for lhs_word, rhs_word, rel_word in edgelist_reader.read(edge_file_in, entities_by_type['all']):
             if rel_word is None:
                 rel_id = 0
             else:
