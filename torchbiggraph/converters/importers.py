@@ -73,7 +73,7 @@ class PytablesEdgelistReader(EdgelistReader):
             nrows = args[2]
             return pd.read_csv(path, skiprows = skiprows, nrows = nrows)
 
-        args = ((path, part_by_type.start() * i, block_size) for i in range(int(part_by_type.size()/ block_size)))
+        args = ((path, part_by_type.start() + block_size * i, block_size) for i in range(int(part_by_type.size()/ block_size)))
         #threaded function to read all files
         with ThreadPoolExecutor() as threads:
             results = threads.map(warp_func, args)
