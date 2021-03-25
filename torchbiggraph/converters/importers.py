@@ -391,7 +391,7 @@ def convert_input_data(
 
     if distributed:
         #assume have only one
-        entity_name, entity_config = entity_configs.items()[0]:
+        entity_name, entity_config = list(entity_configs.items())[0]
         #read all relation types and count
         names = relation_type_storage.load_names()
         relation_types = Dictionary(names)

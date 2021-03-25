@@ -19,7 +19,7 @@ def get_torchbiggraph_config():
         ],
         checkpoint_path="model/comv5",
         # Graph structure
-        entities={"all": {"num_partitions": 1, "part_":1}},
+        entities={"all": {"num_partitions": 2, "part_":1}},
         relations=[
             {
                 "name": "all_edges",
