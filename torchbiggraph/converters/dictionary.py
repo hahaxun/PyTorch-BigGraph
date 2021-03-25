@@ -11,7 +11,7 @@ from typing import Dict, List, Tuple
 
 
 class Dictionary:
-    def __init__(self, ix_to_word: List[str], *, num_parts: int = 1) -> None:
+    def __init__(self, ix_to_word: List[str], num_parts: int = 1) -> None:
         self.ix_to_word: List[str] = ix_to_word
         self.word_to_ix: Dict[str, int] = {w: i for i, w in enumerate(ix_to_word)}
         self.num_parts = num_parts
