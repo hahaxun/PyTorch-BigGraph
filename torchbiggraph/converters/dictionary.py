@@ -50,7 +50,7 @@ class Dictionary:
 
 
 class PartDictionary(Dictionary):
-    def __init__(self, ix_to_word: List[str], *, num_parts: int = 1, part_:int = 0) -> None:
+    def __init__(self, ix_to_word: List[str], num_parts: int = 1, part_:int = 0) -> None:
         super().__init__(ix_to_word, num_parts)
         self.part_ = part_
     
