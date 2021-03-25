@@ -64,6 +64,15 @@ class EntitySchema(Schema):
             "the same number of partitions."
         },
     )
+
+    part_: int = attr.ib(
+        validator=positive,
+        metadata={
+            "help": "currt of partitions for this entity type. Set to 1 "
+            "use for support distributed running"
+        },
+    )
+
     featurized: bool = attr.ib(
         default=False,
         metadata={
