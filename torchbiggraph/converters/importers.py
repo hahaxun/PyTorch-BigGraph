@@ -13,6 +13,7 @@ from abc import ABC, abstractmethod
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Counter, Dict, Iterable, List, Optional, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
 import torch
 from torchbiggraph.config import EntitySchema, RelationSchema
@@ -72,7 +73,7 @@ class PytablesEdgelistReader(EdgelistReader):
             nrows = args[2]
             return pd.read_csv(path, skiprows = skiprows, nrows = nrows)
 
-        args = ((path, part_by_type.start(), block_size) for i in range(part_by_type.size()/ block_size))
+        args = ((path, part_by_type.start() * i, block_size) for i in range(int(part_by_type.size()/ block_size)))
         #threaded function to read all files
         with ThreadPoolExecutor() as threads:
             results = threads.map(warp_func, args)
@@ -400,7 +401,7 @@ def convert_input_data(
         entities_by_type: Dict[str, PartDictionary] = {}
         names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
         entities_by_type[entity_name] = PartDictionary(
-            names, num_parts = 1,
+            names, num_parts = entity_configs[entity_name].num_partitions,
             part_=entity_configs[entity_name].part_
         )
 

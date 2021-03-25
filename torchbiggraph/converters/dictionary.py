@@ -54,19 +54,12 @@ class PartDictionary(Dictionary):
         super().__init__(ix_to_word, num_parts)
         self.part_ = part_
     
-    def size(self) -> int:
-        return self.part_size(self.part_)
+    def part_size(self) -> int:
+        return super().part_size(self.part_)
 
     def start(self) -> int:
         return self.part_start(self.part_ - 1)
 
     def end(self) -> int:
         return self.part_end(self.part_)
-<<<<<<< HEAD
 
-    def get_list(self)-> List[str]:
-        self.get_part_list(self.part_)
-    
-=======
-    
->>>>>>> f1bd887973a2876063e620e690ad55ff3d47a986
