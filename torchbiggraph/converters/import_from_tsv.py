@@ -12,6 +12,7 @@ from pathlib import Path
 from torchbiggraph.config import ConfigFileLoader, ConfigSchema
 from torchbiggraph.converters.importers import (
     TSVEdgelistReader,
+    PytablesEdgelistReader,
     convert_input_data,
     parse_config_partial,
 )
@@ -72,7 +73,7 @@ def main():
         entity_path,
         edge_paths,
         opt.edge_paths,
-        TSVEdgelistReader(opt.lhs_col, opt.rhs_col, opt.rel_col),
+        PytablesEdgelistReader(opt.lhs_col, opt.rhs_col, opt.rel_col),
         opt.entity_min_count,
         opt.relation_type_min_count,
         dynamic_relations,

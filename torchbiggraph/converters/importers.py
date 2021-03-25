@@ -8,6 +8,7 @@
 
 import datetime
 import random
+import pandas as pd
 from abc import ABC, abstractmethod
 from contextlib import ExitStack
 from pathlib import Path
@@ -15,7 +16,7 @@ from typing import Any, Counter, Dict, Iterable, List, Optional, Tuple
 
 import torch
 from torchbiggraph.config import EntitySchema, RelationSchema
-from torchbiggraph.converters.dictionary import Dictionary
+from torchbiggraph.converters.dictionary import Dictionary, PartDictionary
 from torchbiggraph.edgelist import EdgeList
 from torchbiggraph.entitylist import EntityList
 from torchbiggraph.graph_storages import (
@@ -45,7 +46,7 @@ class TSVEdgelistReader(EdgelistReader):
     def __init__(self, lhs_col: int, rhs_col: int, rel_col: int):
         self.lhs_col, self.rhs_col, self.rel_col = lhs_col, rhs_col, rel_col
 
-    def read(self, path: Path):
+    def read(self, path: Path, *args):
         with path.open("rt") as tf:
             for line_num, line in enumerate(tf, start=1):
                 words = line.split()
@@ -58,6 +59,37 @@ class TSVEdgelistReader(EdgelistReader):
                     raise RuntimeError(
                         f"Line {line_num} of {path} has only {len(words)} words"
                     ) from None
+
+class PytablesEdgelistReader(EdgelistReader):
+    def __init__(self, lhs_col: int, rhs_col: int, rel_col: int):
+        self.lhs_col, self.rhs_col, self.rel_col = lhs_col, rhs_col, rel_col
+
+    def read(self, path: Path, part_by_type: PartDictionary, block_size:int = 10000):
+        #inner function to parse parameter
+        def warp_func(args):
+            path = args[0]
+            skiprows = args[1]
+            nrows = args[2]
+            return pd.read_csv(path, skiprows = skiprows, nrows = nrows)
+
+        args = ((path, part_by_type.start(), block_size) for i in range(part_by_type.size()/ block_size))
+        #threaded function to read all files
+        with ThreadPoolExecutor() as threads:
+            results = threads.map(warp_func, args)
+        
+        try:
+            for df in results:
+                for index, row in df.iterrows():
+                    words = row.values[0].split('\t')
+                    lhs_word = words[self.lhs_col]
+                    rhs_word = words[self.rhs_col]
+                    rel_word = words[self.rel_col] if self.rel_col is not None else None
+                    yield lhs_word, rhs_word, rel_word
+        except IndexError:
+            raise RuntimeError(
+                f"Line {index} of {path} has only {len(words)} words"
+            ) from None
+
 
 
 class ParquetEdgelistReader(EdgelistReader):
@@ -94,7 +126,7 @@ def collect_relation_types(
     dynamic_relations: bool,
     edgelist_reader: EdgelistReader,
     relation_type_min_count: int,
-) -> Dictionary:
+) -> Dictionary:  
 
     if dynamic_relations:
         log("Looking up relation types in the edge files...")
@@ -245,7 +277,7 @@ def generate_edge_path_files(
         appenders: Dict[Tuple[int, int], AbstractEdgeAppender] = {}
         data: Dict[Tuple[int, int], List[Tuple[int, int, int]]] = {}
 
-        for lhs_word, rhs_word, rel_word in edgelist_reader.read(edge_file_in):
+        for lhs_word, rhs_word, rel_word in edgelist_reader.read(edge_file_in, entities_by_type):
             if rel_word is None:
                 rel_id = 0
             else:
@@ -315,6 +347,7 @@ def convert_input_data(
     entity_min_count: int = 1,
     relation_type_min_count: int = 1,
     dynamic_relations: bool = False,
+    distributed: bool = False,
 ) -> None:
     if len(edge_paths_in) != len(edge_paths_out):
         raise ValueError(
@@ -354,31 +387,47 @@ def convert_input_data(
         log(f"These files are in: {all_paths}")
         return
 
-    relation_types = collect_relation_types(
-        relation_configs,
-        edge_paths_in,
-        dynamic_relations,
-        edgelist_reader,
-        relation_type_min_count,
-    )
+    part_by_type: PartDictionary = None
 
-    entities_by_type = collect_entities_by_type(
-        relation_types,
-        entity_configs,
-        relation_configs,
-        edge_paths_in,
-        dynamic_relations,
-        edgelist_reader,
-        entity_min_count,
-    )
+    if distributed:
+        #read all relation types and count
+        names = relation_type_storage.load_names()
+        relation_types = Dictionary(names)
 
-    generate_entity_path_files(
-        entity_storage,
-        entities_by_type,
-        relation_type_storage,
-        relation_types,
-        dynamic_relations,
-    )
+        #read all entities and count
+        entities_by_type: Dict[str, PartDictionary] = {}
+        names = entity_storage.load_names()
+        entities_by_type[entity_name] = PartDictionary(
+            names, num_parts=entity_configs[entity_name].num_partitions,
+            part_=entity_configs[entity_name].part_
+        )
+
+    else:
+        relation_types = collect_relation_types(
+            relation_configs,
+            edge_paths_in,
+            dynamic_relations,
+            edgelist_reader,
+            relation_type_min_count,
+        )
+
+        entities_by_type = collect_entities_by_type(
+            relation_types,
+            entity_configs,
+            relation_configs,
+            edge_paths_in,
+            dynamic_relations,
+            edgelist_reader,
+            entity_min_count,
+        )
+
+        generate_entity_path_files(
+            entity_storage,
+            entities_by_type,
+            relation_type_storage,
+            relation_types,
+            dynamic_relations,
+        )
 
     for edge_path_in, edge_path_out, edge_storage in zip(
         edge_paths_in, edge_paths_out, edge_storages

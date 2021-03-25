@@ -46,3 +46,23 @@ class Dictionary:
         if not 0 <= part < self.num_parts:
             raise ValueError(f"{part} not in [0, {self.num_parts})")
         return self.ix_to_word[self.part_start(part) : self.part_end(part)]
+
+
+
+class PartDictionary:
+    def __init__(self, ix_to_word: List[str], *, num_parts: int = 1, part_:int = 0) -> None:
+        super().__init__(ix_to_word, num_parts)
+        self.part_ = part_
+    
+    def size(self) -> int:
+        return self.part_size(self.part_)
+
+    def start(self) -> int:
+        return self.part_start(self.part_)
+
+    def end(self) -> int:
+        return self.part_end(self.part_)
+
+    def get_list(self)-> List[str]:
+        self.get_part_list(self.part_)
+    
