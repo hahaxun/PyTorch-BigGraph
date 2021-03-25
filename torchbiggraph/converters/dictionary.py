@@ -58,11 +58,8 @@ class PartDictionary(Dictionary):
         return self.part_size(self.part_)
 
     def start(self) -> int:
-        return self.part_start(self.part_)
+        return self.part_start(self.part_ - 1)
 
     def end(self) -> int:
         return self.part_end(self.part_)
-
-    def get_list(self)-> List[str]:
-        self.get_part_list(self.part_)
     
