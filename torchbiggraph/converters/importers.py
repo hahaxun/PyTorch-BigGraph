@@ -9,6 +9,7 @@
 import datetime
 import random
 import pandas as pd
+import threading, queue
 from abc import ABC, abstractmethod
 from contextlib import ExitStack
 from pathlib import Path
@@ -64,8 +65,38 @@ class TSVEdgelistReader(EdgelistReader):
 class PytablesEdgelistReader(EdgelistReader):
     def __init__(self, lhs_col: int, rhs_col: int, rel_col: int):
         self.lhs_col, self.rhs_col, self.rel_col = lhs_col, rhs_col, rel_col
+        self.results = queue.Queue()
+        self.data_queue = queue.Queue()
+        self.path = "" #for debug
+
+    def parse_df(self):
+        try:
+            if self.results.qsize() == 0:
+                return 
+        
+            df = self.results.get()
+            for index, row in df.iterrows():
+                words = row.values[0].split('\t')
+                lhs_word = words[self.lhs_col]
+                rhs_word = words[self.rhs_col]
+                rel_word = words[self.rel_col] if self.rel_col is not None else None
+                self.data_queue.put((lhs_word, rhs_word, rel_word))
+        except IndexError:
+            raise RuntimeError(
+                f"Line {index} of {self.path} has only {len(words)} words"
+            ) from None
+
+    def __next__(self):
+        if self.data_queue.qsize() == 0:
+            self.parse_df()
+        
+        if self.data_queue.qsize() == 0:
+            return None, None, None 
+        return self.data_queue.get()
 
     def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 10000):
+        #for debug
+        self.path = path
         #inner function to parse parameter
         def warp_func(args):
             path = args[0]
@@ -77,20 +108,8 @@ class PytablesEdgelistReader(EdgelistReader):
         log(f"Using the {int(part_by_type.block_size()/ chunk_size)} chunk given in the config")
         #threaded function to read all files
         with ThreadPoolExecutor() as threads:
-            results = threads.map(warp_func, args)
-        
-        try:
-            for df in results:
-                for index, row in df.iterrows():
-                    words = row.values[0].split('\t')
-                    lhs_word = words[self.lhs_col]
-                    rhs_word = words[self.rhs_col]
-                    rel_word = words[self.rel_col] if self.rel_col is not None else None
-                    yield lhs_word, rhs_word, rel_word
-        except IndexError:
-            raise RuntimeError(
-                f"Line {index} of {path} has only {len(words)} words"
-            ) from None
+            queries = threads.map(warp_func, args)
+            list_ = [self.results.put(query) for query in queries]
 
 
 
@@ -280,7 +299,12 @@ def generate_edge_path_files(
         appenders: Dict[Tuple[int, int], AbstractEdgeAppender] = {}
         data: Dict[Tuple[int, int], List[Tuple[int, int, int]]] = {}
 
-        for lhs_word, rhs_word, rel_word in edgelist_reader.read(edge_file_in, entities_by_type['all']):
+        reader_iters = edgelist_reader.read(edge_file_in, entities_by_type['all'])
+        while True :
+            lhs_word, rhs_word, rel_word = next(reader_iters)
+            if lhs_word == None and rhs_word == None:
+                return None
+            
             if rel_word is None:
                 rel_id = 0
             else:
