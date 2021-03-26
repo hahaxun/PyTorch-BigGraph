@@ -8,13 +8,16 @@
 
 import datetime
 import random
+import time
 import pandas as pd
 import threading, queue
+from threading import Thread
 from abc import ABC, abstractmethod
 from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Counter, Dict, Iterable, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
+from collections import deque
 
 import torch
 from torchbiggraph.config import EntitySchema, RelationSchema
@@ -62,60 +65,49 @@ class TSVEdgelistReader(EdgelistReader):
                         f"Line {line_num} of {path} has only {len(words)} words"
                     ) from None
 
+
 class PytablesEdgelistReader(EdgelistReader):
     def __init__(self, lhs_col: int, rhs_col: int, rel_col: int):
         self.lhs_col, self.rhs_col, self.rel_col = lhs_col, rhs_col, rel_col
-        self.results = queue.Queue()
-        self.data_queue = queue.Queue()
+        self.read_finish = False
+        self.data_queue = deque()
         self.path = "" #for debug
 
-    def parse_df(self):
+    def parse_df(self, path:str, skiprows:int, chunksize:int, block_size:int):
         try:
-            if self.results.qsize() == 0:
-                return 
-        
-            df = self.results.get()
-            for index, row in df.iterrows():
-                words = row.values[0].split('\t')
-                lhs_word = words[self.lhs_col]
-                rhs_word = words[self.rhs_col]
-                rel_word = words[self.rel_col] if self.rel_col is not None else None
-                self.data_queue.put((lhs_word, rhs_word, rel_word))
+            for chunk in pd.read_csv(path, skiprows = skiprows, nrows = block_size, chunksize=chunksize):
+                for index, row in chunk.iterrows():
+                    words = row.values[0].split('\t')
+                    lhs_word = words[self.lhs_col]
+                    rhs_word = words[self.rhs_col]
+                    rel_word = words[self.rel_col] if self.rel_col is not None else None
+                    self.data_queue.append((lhs_word, rhs_word, rel_word))
+            self.read_finish = True
         except IndexError:
             raise RuntimeError(
                 f"Line {index} of {self.path} has only {len(words)} words"
             ) from None
 
     def __next__(self):
-        if self.data_queue.qsize() == 0:
-            self.parse_df()
+        if len(self.data_queue) == 0 and self.read_finish == True:
+            return None, None, None
         
-        if self.data_queue.qsize() == 0:
-            return None, None, None 
-        return self.data_queue.get()
+        #wait for read data
+        while len(self.data_queue) == 0:
+            time.sleep(1)
+            pass
 
-<<<<<<< HEAD
-    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 1000):
-=======
-    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 10000):
+        return self.data_queue.pop()
+
+    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 8000):
         #for debug
         self.path = path
->>>>>>> 960647258e0282592d4acdf330570f4553d4d754
-        #inner function to parse parameter
-        def warp_func(args):
-            path = args[0]
-            skiprows = args[1]
-            nrows = args[2]
-            return pd.read_csv(path, skiprows = skiprows, nrows = nrows)
+        
+        Thread(target = self.parse_df, args=(path, part_by_type.block_start(), chunk_size, part_by_type.block_size(),)).start()        
 
-        args = ((path, part_by_type.block_start() +  i * chunk_size, chunk_size) for i in range(int(part_by_type.block_size()/ chunk_size)))
         log(f"Using the {int(part_by_type.block_size()/ chunk_size)} chunk given in the config")
-        #threaded function to read all files
-        with ThreadPoolExecutor() as threads:
-            queries = threads.map(warp_func, args)
-            list_ = [self.results.put(query) for query in queries]
 
-
+        return self
 
 class ParquetEdgelistReader(EdgelistReader):
     def __init__(self, lhs_col: str, rhs_col: str, rel_col: Optional[str]):
@@ -351,7 +343,7 @@ def generate_edge_path_files(
                 part_data.clear()
 
             processed = processed + 1
-            if processed % 10000 == 0:
+            if processed % 100000 == 0:
                 log(f"- Processed {processed} edges so far...")
 
         for (lhs_part, rhs_part), part_data in data.items():

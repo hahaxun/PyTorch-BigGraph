@@ -55,6 +55,10 @@ def main():
     parser.add_argument(
         "--local_rank", type=int, default=0, help="local rank for dpp"
     )
+
+    parser.add_argument(
+        "--base_rank", type=int, default=0, help="local rank for dpp"
+    )
     opt = parser.parse_args()
 
     loader = ConfigFileLoader()
@@ -82,7 +86,7 @@ def main():
         opt.relation_type_min_count,
         dynamic_relations,
         True,
-        opt.local_rank
+        opt.base_rank + opt.local_rank
     )
 
 
