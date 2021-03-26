@@ -65,7 +65,7 @@ class PytablesEdgelistReader(EdgelistReader):
     def __init__(self, lhs_col: int, rhs_col: int, rel_col: int):
         self.lhs_col, self.rhs_col, self.rel_col = lhs_col, rhs_col, rel_col
 
-    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 10000):
+    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 1000):
         #inner function to parse parameter
         def warp_func(args):
             path = args[0]
@@ -411,6 +411,7 @@ def convert_input_data(
         #read all entities and count
         entities_by_type: Dict[str, PartDictionary] = {}
         names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
+        log(f"These lenth of entities: {len(names)}")
         entities_by_type[entity_name] = PartDictionary(
             names, num_parts = entity_configs[entity_name].num_partitions,
             part_= locak_rank,
