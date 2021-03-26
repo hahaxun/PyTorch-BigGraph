@@ -485,4 +485,4 @@ class FileEdgeStorage(AbstractEdgeStorage):
         with h5py.File(tmp_file_path, "x") as hf, FileEdgeAppender(hf) as appender:
             hf.attrs[FORMAT_VERSION_ATTR] = FORMAT_VERSION
             yield appender
-        tmp_file_path.rename(file_path)
+        #tmp_file_path.rename(file_path)

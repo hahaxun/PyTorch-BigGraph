@@ -359,6 +359,7 @@ def convert_input_data(
     relation_type_min_count: int = 1,
     dynamic_relations: bool = False,
     distributed: bool = False,
+    locak_rank: int = 0,
 ) -> None:
     if len(edge_paths_in) != len(edge_paths_out):
         raise ValueError(
@@ -412,7 +413,7 @@ def convert_input_data(
         names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
         entities_by_type[entity_name] = PartDictionary(
             names, num_parts = entity_configs[entity_name].num_partitions,
-            part_=entity_configs[entity_name].part_,
+            part_= locak_rank,
             block_relation_size=entity_configs[entity_name].block_size
         )
 

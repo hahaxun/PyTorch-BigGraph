@@ -70,7 +70,6 @@ def main():
         config_dict
     )
 
-    entity_configs['all'].part_ = args.local_rank
     
     convert_input_data(
         entity_configs,
@@ -82,7 +81,8 @@ def main():
         opt.entity_min_count,
         opt.relation_type_min_count,
         dynamic_relations,
-        True
+        True,
+        opt.local_rank
     )
 
 
