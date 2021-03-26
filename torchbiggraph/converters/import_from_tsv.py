@@ -52,6 +52,9 @@ def main():
     parser.add_argument(
         "--entity-min-count", type=int, default=1, help="Min count for entities"
     )
+    parser.add_argument(
+        "--local_rank", type=int, default=0, help="local rank for dpp"
+    )
     opt = parser.parse_args()
 
     loader = ConfigFileLoader()
@@ -67,6 +70,8 @@ def main():
         config_dict
     )
 
+    entity_configs['all'].part_ = args.local_rank
+    
     convert_input_data(
         entity_configs,
         relation_configs,
