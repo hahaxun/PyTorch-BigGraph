@@ -14,12 +14,10 @@ def get_torchbiggraph_config():
         entity_path="./",
         edge_paths=[
             "./",
-            "./",
-            "./",
         ],
         checkpoint_path="model/comv5",
         # Graph structure
-        entities={"all": {"num_partitions": 2, "part_":1}},
+        entities={"all": {"num_partitions": 2, "part_":1, "block_size":1000000}},
         relations=[
             {
                 "name": "all_edges",

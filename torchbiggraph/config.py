@@ -73,6 +73,14 @@ class EntitySchema(Schema):
         },
     )
 
+    block_size: int = attr.ib(
+        validator=positive,
+        metadata={
+            "help": "distributed block size "
+            "use for support distributed running"
+        },
+    )
+
     featurized: bool = attr.ib(
         default=False,
         metadata={

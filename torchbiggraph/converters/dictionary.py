@@ -50,16 +50,14 @@ class Dictionary:
 
 
 class PartDictionary(Dictionary):
-    def __init__(self, ix_to_word: List[str], num_parts: int = 1, part_:int = 0) -> None:
+    def __init__(self, ix_to_word: List[str], num_parts: int = 1, part_:int = 0, block_relation_size:int = 10**8) -> None:
         super().__init__(ix_to_word, num_parts)
         self.part_ = part_
+        self.block_relation_size = block_relation_size
     
-    def part_size(self) -> int:
-        return super().part_size(self.part_)
+    def block_size(self) -> int:
+        return self.block_relation_size
 
-    def start(self) -> int:
-        return self.part_start(self.part_ - 1)
-
-    def end(self) -> int:
-        return self.part_end(self.part_)
+    def block_start(self) -> int:
+        return self.part_ * self.block_relation_size
 

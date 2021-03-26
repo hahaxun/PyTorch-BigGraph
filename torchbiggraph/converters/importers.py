@@ -65,7 +65,7 @@ class PytablesEdgelistReader(EdgelistReader):
     def __init__(self, lhs_col: int, rhs_col: int, rel_col: int):
         self.lhs_col, self.rhs_col, self.rel_col = lhs_col, rhs_col, rel_col
 
-    def read(self, path: Path, part_by_type: PartDictionary, block_size:int = 10000):
+    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 10000):
         #inner function to parse parameter
         def warp_func(args):
             path = args[0]
@@ -73,7 +73,8 @@ class PytablesEdgelistReader(EdgelistReader):
             nrows = args[2]
             return pd.read_csv(path, skiprows = skiprows, nrows = nrows)
 
-        args = ((path, part_by_type.start() + block_size * i, block_size) for i in range(int(part_by_type.size()/ block_size)))
+        args = ((path, part_by_type.block_start() +  i * chunk_size, chunk_size) for i in range(int(part_by_type.block_size()/ chunk_size)))
+        log(f"Using the {int(part_by_type.block_size()/ chunk_size)} chunk given in the config")
         #threaded function to read all files
         with ThreadPoolExecutor() as threads:
             results = threads.map(warp_func, args)
@@ -322,7 +323,7 @@ def generate_edge_path_files(
                 part_data.clear()
 
             processed = processed + 1
-            if processed % 100000 == 0:
+            if processed % 10000 == 0:
                 log(f"- Processed {processed} edges so far...")
 
         for (lhs_part, rhs_part), part_data in data.items():
@@ -411,7 +412,8 @@ def convert_input_data(
         names = entity_storage.load_names(entity_name, entity_configs[entity_name].part_)
         entities_by_type[entity_name] = PartDictionary(
             names, num_parts = entity_configs[entity_name].num_partitions,
-            part_=entity_configs[entity_name].part_
+            part_=entity_configs[entity_name].part_,
+            block_relation_size=entity_configs[entity_name].block_size
         )
 
     else:
