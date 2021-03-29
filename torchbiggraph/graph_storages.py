@@ -390,7 +390,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
         self.path = Path(path).resolve(strict=False)
 
     def get_edges_file(self, lhs_p: Partition, rhs_p: Partition) -> Path:
-        return self.path / f"edges_{lhs_p}_{rhs_p}.h5"
+        return self.path / f"edges_{lhs_p}_{rhs_p}.hdf5"
 
     def prepare(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
