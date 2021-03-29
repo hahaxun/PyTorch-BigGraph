@@ -7,6 +7,7 @@
 # LICENSE.txt file in the root directory of this source tree.
 
 import argparse
+from mpi4py import MPI
 from pathlib import Path
 
 from torchbiggraph.config import ConfigFileLoader, ConfigSchema
@@ -61,7 +62,9 @@ def main():
     )
     opt = parser.parse_args()
 
+    rank = MPI.COMM_WORLD.rank 
     loader = ConfigFileLoader()
+
     config_dict = loader.load_raw_config(opt.config, opt.param)
 
     (
@@ -86,7 +89,7 @@ def main():
         opt.relation_type_min_count,
         dynamic_relations,
         True,
-        opt.base_rank + opt.local_rank
+        opt.base_rank + rank#opt.local_rank
     )
 
 

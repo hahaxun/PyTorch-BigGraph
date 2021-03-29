@@ -14,6 +14,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from types import TracebackType
 from typing import ContextManager, Dict, Iterator, List, Optional, Type
+from mpi4py import MPI
 
 import h5py
 import numpy as np
