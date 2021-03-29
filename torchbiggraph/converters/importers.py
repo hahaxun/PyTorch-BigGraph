@@ -98,17 +98,16 @@ class PytablesEdgelistReader(EdgelistReader):
         while len(self.data_queue) == 0:
             time.sleep(1)
             pass
-
         return self.data_queue.pop()
 
-    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int = 8000):
+    def read(self, path: Path, part_by_type: PartDictionary, chunk_size:int=10000000):
         #for debug
         self.path = path
         
         #read csv data
         chunks = pd.read_csv(path, skiprows = part_by_type.block_start(), nrows = part_by_type.block_size(), chunksize=chunk_size)
         Thread(target = self.parse_df, args=(path, chunks,)).start()        
-
+        
         log(f"Using the {int(part_by_type.block_size()/ chunk_size)} chunk given in the config")
 
         return self
@@ -314,7 +313,7 @@ def generate_edge_path_files(
                     # Ignore edges whose relation type is not known.
                     edge_skipped += 1
                     continue
-
+            
             if dynamic_relations:
                 lhs_type = relation_configs[0].lhs
                 rhs_type = relation_configs[0].rhs
@@ -345,9 +344,9 @@ def generate_edge_path_files(
             if len(part_data) > n_flush_edges:
                 append_to_file(part_data, appenders[lhs_part, rhs_part])
                 part_data.clear()
-
+            
             processed = processed + 1
-            if processed % 100000 == 0:
+            if processed % 10000 == 0:
                 log(f"- Processed {processed} edges so far...")
 
         for (lhs_part, rhs_part), part_data in data.items():
