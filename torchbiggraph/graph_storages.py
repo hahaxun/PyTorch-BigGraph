@@ -489,7 +489,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
         tmp_file_path = file_path.parent / f"{file_path.stem}.tmp{file_path.suffix}"
         if tmp_file_path.is_file():
             tmp_file_path.unlink()
-        with h5py.File(tmp_file_path, 'a', driver='mpio', comm=MPI.COMM_WORLD) as hf, FileEdgeAppender(hf) as appender:
+        with h5py.File(tmp_file_path, 'w', driver='mpio', comm=MPI.COMM_WORLD) as hf, FileEdgeAppender(hf) as appender:
             hf.attrs[FORMAT_VERSION_ATTR] = FORMAT_VERSION
             yield appender
         #tmp_file_path.rename(file_path)
