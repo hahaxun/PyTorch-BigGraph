@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Any, Counter, Dict, Iterable, List, Optional, Tuple
 from concurrent.futures import ThreadPoolExecutor
 from collections import deque
+from mpi4py import MPI
+import h5py
 
 import torch
 from torchbiggraph.config import EntitySchema, RelationSchema

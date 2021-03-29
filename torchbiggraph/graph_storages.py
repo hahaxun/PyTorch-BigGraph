@@ -269,13 +269,17 @@ class BufferedDataset:
     def __init__(self, hf: h5py.File, dataset_name: str) -> None:
         self.hf: h5py.File = hf
         self.dataset_name: str = dataset_name
-        self.dataset: h5py.Dataset = self.hf.create_dataset(
-            name=self.dataset_name,
-            dtype=torch_to_numpy_dtype(self.DATA_TYPE),
-            shape=(0,),
-            chunks=(self.BUFFER_SIZE,),
-            maxshape=(None,),
-        )
+        try:
+            self.dataset: h5py.Dataset = self.hf.create_dataset(
+                name=self.dataset_name,
+                dtype=torch_to_numpy_dtype(self.DATA_TYPE),
+                shape=(0,),
+                chunks=(self.BUFFER_SIZE,),
+                maxshape=(None,),
+            )
+        except:
+            self.self.dataset = self.hf['dataset_name']
+            
         self.buffer: torch.Tensor = torch.empty(
             (self.BUFFER_SIZE,), dtype=self.DATA_TYPE
         )
@@ -482,7 +486,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
         tmp_file_path = file_path.parent / f"{file_path.stem}.tmp{file_path.suffix}"
         if tmp_file_path.is_file():
             tmp_file_path.unlink()
-        with h5py.File(tmp_file_path, "x") as hf, FileEdgeAppender(hf) as appender:
+        with h5py.File(tmp_file_path, 'a', driver='mpio', comm=MPI.COMM_WORLD) as hf, FileEdgeAppender(hf) as appender:
             hf.attrs[FORMAT_VERSION_ATTR] = FORMAT_VERSION
             yield appender
         #tmp_file_path.rename(file_path)
