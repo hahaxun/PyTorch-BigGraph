@@ -278,8 +278,8 @@ class BufferedDataset:
                 maxshape=(None,),
             )
         except:
-            self.self.dataset = self.hf['dataset_name']
-            
+            self.dataset = self.hf['dataset_name']
+
         self.buffer: torch.Tensor = torch.empty(
             (self.BUFFER_SIZE,), dtype=self.DATA_TYPE
         )
@@ -287,6 +287,7 @@ class BufferedDataset:
         self.total_data: int = 0
 
     def flush_buffer(self, _last: bool = False) -> None:
+        self.hf.atomic = True
         if not _last:
             assert self.buffer_offset == self.BUFFER_SIZE
         elif self.buffer_offset == 0:
@@ -298,6 +299,7 @@ class BufferedDataset:
         self.dataset.resize(self.dataset.shape[0] + self.buffer_offset, axis=0)
         self.dataset[-self.buffer_offset :] = self.buffer[: self.buffer_offset].numpy()
         self.buffer_offset = 0
+        self.hf.atomic = False
 
     def append(self, tensor: torch.Tensor) -> None:
         (tensor_size,) = tensor.shape
@@ -398,7 +400,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
     def get_number_of_edges(self, lhs_p: Partition, rhs_p: Partition) -> int:
         file_path = self.get_edges_file(lhs_p, rhs_p)
         try:
-            with h5py.File(file_path, "r") as hf:
+            with h5py.File(file_path, "r", driver='mpio', comm=MPI.COMM_WORLD) as hf:
                 if hf.attrs.get(FORMAT_VERSION_ATTR, None) != FORMAT_VERSION:
                     raise RuntimeError(f"Version mismatch in edge file {file_path}")
                 return hf["rel"].len()
@@ -419,7 +421,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
     ) -> EdgeList:
         file_path = self.get_edges_file(lhs_p, rhs_p)
         try:
-            with h5py.File(file_path, "r") as hf:
+            with h5py.File(file_path, "r", driver='mpio', comm=MPI.COMM_WORLD) as hf:
                 if hf.attrs.get(FORMAT_VERSION_ATTR, None) != FORMAT_VERSION:
                     raise RuntimeError(f"Version mismatch in edge file {file_path}")
                 lhs_ds = hf["lhs"]
