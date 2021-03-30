@@ -14,11 +14,11 @@ from contextlib import contextmanager
 from pathlib import Path
 from types import TracebackType
 from typing import ContextManager, Dict, Iterator, List, Optional, Type
-from mpi4py import MPI
 
 import h5py
 import numpy as np
 import torch
+import os
 from torchbiggraph.edgelist import EdgeList
 from torchbiggraph.entitylist import EntityList
 from torchbiggraph.plugin import URLPluginRegistry
@@ -265,7 +265,7 @@ def torch_to_numpy_dtype(dtype):
 class BufferedDataset:
 
     DATA_TYPE = torch.long  # int64, 8 bytes
-    BUFFER_SIZE = 50 * 2 ** 20 // 8  # 50MiB
+    BUFFER_SIZE = 2 ** 20 // 8  # 1MiB
 
     def __init__(self, hf: h5py.File, dataset_name: str) -> None:
         self.hf: h5py.File = hf
@@ -288,7 +288,6 @@ class BufferedDataset:
         self.total_data: int = 0
 
     def flush_buffer(self, _last: bool = False) -> None:
-        self.hf.atomic = True
         if not _last:
             assert self.buffer_offset == self.BUFFER_SIZE
         elif self.buffer_offset == 0:
@@ -300,7 +299,6 @@ class BufferedDataset:
         self.dataset.resize(self.dataset.shape[0] + self.buffer_offset, axis=0)
         self.dataset[-self.buffer_offset :] = self.buffer[: self.buffer_offset].numpy()
         self.buffer_offset = 0
-        self.hf.atomic = False
 
     def append(self, tensor: torch.Tensor) -> None:
         (tensor_size,) = tensor.shape
@@ -390,7 +388,8 @@ class FileEdgeStorage(AbstractEdgeStorage):
         self.path = Path(path).resolve(strict=False)
 
     def get_edges_file(self, lhs_p: Partition, rhs_p: Partition) -> Path:
-        return self.path / f"edges_{lhs_p}_{rhs_p}.hdf5"
+        rank = torch.distributed.get_rank() + int(os.environ["BASERANK"]) 
+        return self.path / f"edges_{lhs_p}_{rhs_p}_{rank}.h5"
 
     def prepare(self) -> None:
         self.path.mkdir(parents=True, exist_ok=True)
@@ -401,7 +400,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
     def get_number_of_edges(self, lhs_p: Partition, rhs_p: Partition) -> int:
         file_path = self.get_edges_file(lhs_p, rhs_p)
         try:
-            with h5py.File(file_path, "r", driver='mpio', comm=MPI.COMM_WORLD) as hf:
+            with h5py.File(file_path, "r") as hf:
                 if hf.attrs.get(FORMAT_VERSION_ATTR, None) != FORMAT_VERSION:
                     raise RuntimeError(f"Version mismatch in edge file {file_path}")
                 return hf["rel"].len()
@@ -422,7 +421,7 @@ class FileEdgeStorage(AbstractEdgeStorage):
     ) -> EdgeList:
         file_path = self.get_edges_file(lhs_p, rhs_p)
         try:
-            with h5py.File(file_path, "r", driver='mpio', comm=MPI.COMM_WORLD) as hf:
+            with h5py.File(file_path, "r") as hf:
                 if hf.attrs.get(FORMAT_VERSION_ATTR, None) != FORMAT_VERSION:
                     raise RuntimeError(f"Version mismatch in edge file {file_path}")
                 lhs_ds = hf["lhs"]
@@ -489,7 +488,8 @@ class FileEdgeStorage(AbstractEdgeStorage):
         tmp_file_path = file_path.parent / f"{file_path.stem}.tmp{file_path.suffix}"
         if tmp_file_path.is_file():
             tmp_file_path.unlink()
-        with h5py.File(tmp_file_path, 'w', driver='mpio', comm=MPI.COMM_WORLD) as hf, FileEdgeAppender(hf) as appender:
+        
+        with h5py.File(tmp_file_path, 'x') as hf, FileEdgeAppender(hf) as appender:
             hf.attrs[FORMAT_VERSION_ATTR] = FORMAT_VERSION
             yield appender
-        #tmp_file_path.rename(file_path)
+        tmp_file_path.rename(file_path)
